@@ -1,0 +1,429 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1">
+<meta name="GENERATOR" content="Microsoft FrontPage Express 2.0">
+<title>XML-SOAP v1.2 Release Notes</title>
+</head>
+
+<body bgcolor="#FFFFFF">
+
+<h1 align="center">XML-SOAP v1.2 Release Notes</h1>
+
+<p align="center">May 25, 2000.</p>
+
+<h2 align="left">Table of Contents</h2>
+
+<ul>
+    <li><p align="left"><a href="#Features of XML-SOAP"><font
+        size="4"><strong>Features of XML-SOAP</strong></font></a></p>
+    </li>
+    <li><p align="left"><a
+        href="#Using XML-SOAP for Remote Procedure Calls"><font
+        size="4"><strong>Using XML-SOAP for Remote Procedure
+        Calls</strong></font></a></p>
+    </li>
+    <li><p align="left"><a href="#RPC over SMTP"><font size="4"><strong>RPC
+        over SMTP</strong></font></a></p>
+    </li>
+    <li><p align="left"><a
+        href="#Using Apache Tomcat v3.1 for the Server-side"><font
+        size="4"><strong>Using Apache Tomcat v3.1 for the
+        Server-side</strong></font></a></p>
+    </li>
+    <li><p align="left"><a href="#Managing Services"><font
+        size="4"><strong>Managing Services</strong></font></a></p>
+    </li>
+    <li><p align="left"><a href="#Tool for Debugging SOAP"><font
+        size="4"><strong>Tool for Debugging SOAP</strong></font></a></p>
+    </li>
+    <li><p align="left"><a href="#Implementation Restrictions"><font
+        size="4"><strong>Implementation Restrictions</strong></font></a></p>
+    </li>
+    <li><p align="left"><a href="#Dependencies"><font size="4"><strong>Dependencies</strong></font></a></p>
+    </li>
+    <li><p align="left"><a href="#Bugs"><font size="4"><strong>Bugs</strong></font></a></p>
+    </li>
+    <li><p align="left"><a href="#Authors"><font size="4"><strong>Authors</strong></font></a></p>
+    </li>
+</ul>
+
+<h2><a name="Features of XML-SOAP">Features of XML-SOAP</a></h2>
+
+<ul>
+    <li>Supports most of the SOAP v1.1 specification</li>
+    <li>Provides server-side infrastructure for deploying,
+        managing and running SOAP enabled services</li>
+    <li>Provides client-side API for invoking SOAP services</li>
+    <li>Release includes full source under the <em>Apache Software License</em></li>
+    <li>Supports three encoding styles: SOAP v1.1 Encoding, <img
+        src="doc/new.gif"> Literal XML and XMI.</li>
+    <li>XMI encoding (available when using Java 1.2.2) supports
+        automatic marshalling and unmarshalling of arbitrary
+        objects</li>
+    <li>SOAP encoding: built-in support is provided for
+        encoding/decoding primitive types, Strings, arbitrary
+        JavaBeans (using reflection) and <img src="doc/new.gif">
+        1-dimensional arrays of these types. For other types user
+        can hand-write encoder/decoder and register with XML-SOAP
+        runtime.</li>
+    <li><img src="doc/new.gif"> Literal XML encoding: allows one
+        to send XML elements (DOM org.w3c.dom.Element objects) as
+        parameters by embedding the literal XML serialization of
+        the DOM tree. No code needs to be written to support this
+        (see the addressbook demo to see a sample use of it).</li>
+    <li>Supports messaging and RPC over two transports: HTTP and
+        SMTP</li>
+    <li><img src="doc/new.gif"> Supports authoring services in
+        scripting languages</li>
+</ul>
+
+<h2><a name="Using XML-SOAP for Remote Procedure Calls">Using
+XML-SOAP for Remote Procedure Calls</a></h2>
+
+<p>The org.apache.soap.rpc package supports performing RPC over
+SOAP. The XML-SOAP model is as follows: </p>
+
+<p>The URI of the method call element is used as the object ID on
+the remote side. The client side API has a &quot;Call&quot;
+object (org.apache.soap.rpc.Call) that is filled in with the method
+name, object ID and parameters. The marshalling/unmarshalling of
+Java datatypes to/from XML is supported by a type mapping
+registry (see org.apache.soap.encoding.SOAPMappingRegistry), and
+serialization (org.apache.soap.util.xml.Serializer) and deserialization
+(org.apache.soap.util.xml.Deserialization) interfaces that marshallers and
+unmarshallers, respectively, must implement. The built-in
+encoders/decoders are simply implementations of these interfaces
+that are preregistered in the SOAPMappingRegistry. </p>
+
+<p>Once a Call object is set up, its invoke (URL, String) method
+may be called to call the method using the URL as the SOAP
+endpoint to deliver to and the 2nd argument being the value of
+the SOAPAction header. This method returns a Response object
+(org.apache.soap.rpc.Response) which contains the actual response
+(if any) or the fault if a fault was generated.</p>
+
+<p>If the RPC is carried over HTTP, the server-side RPC router
+(rpcrouter.jsp in the webapp directory) receives the POST-ed
+envelope, unmarshalls it and then builds a Call object. Then, the
+target object is located by looking up the object ID in the
+ServiceManager's (org.apache.soap.server.ServiceManager), the method
+name is verified and then the invoke (Object) method is called to
+call the method on the target object. The return value is a
+Result (org.apache.soap.rpc.Result) object which is then marshalled
+and sent back as the HTTP response. </p>
+
+<p>If the RPC is carried over SMTP, then it goes to a mailbox and
+sits there waiting to be acted upon. We provide a POP3 to HTTP to
+SMTP bridge to receive these mail messages, post the content to
+an HTTP SOAP endpoint, get the result and forward the result by
+mail (SMTP) to the original sender. The receiving side will poll
+the POP3 server, receive the message, extract the content,
+unmarshall and return the Response to the original caller.</p>
+
+<h2><a name="RPC over SMTP">RPC over SMTP</a></h2>
+
+<p>To do RPC over SMTP in XML-SOAP a certain amount of email
+infrastructure needs to be available. Namely, you need an SMTP
+server, a POP3 server and an email address that you can use to be
+the equivalent of the server-side HTTP router. That is, all SOAP
+RPC calls are sent to a specific address which then processes the
+request somehow and send the result to the sender. To avoid
+duplicating the server-side infrastructure, we have implemented
+the SMTP server-side as a bridge that receives mail sent to the
+SOAP router email address via POP3, posts the SOAP envelope to an
+existing HTTP SOAP infrastructure and sends the response back to
+the sender of the email request via SMTP.</p>
+
+<p>On the client side, the application sends the SOAP request via
+SMTP to the SOAP router email address indicating the address that
+the response should be sent to. Then, it starts polling a POP3
+server to see whether the response has arrived. When it does, the
+envelope is parsed and the respose is extracted. We are using a <a
+href="http://www.alphaworks.ibm.com/aw.nsf/frame?ReadForm&amp;/ab.nsf/techmain/AD8820E9114E5B4488256723000AC87A">POP3
+bean from alphaWorks</a> for the POP3 stuff and that bean does
+not support selective downloading of email. As a result, the
+current implementation relies on the &quot;next message&quot;
+arriving to the client's reply address to be the message
+containing the response to the request. The implication is that
+current implementation does not allow you to make multiple RPC
+calls using the same reply address at the same time.</p>
+
+<p><strong>NOTE</strong>: We <em>strongly</em> recommend against
+using your own email address for testing RPC over SMTP. There are
+many free POP3 email providers on the Web (such as <a
+href="http://www.mailandnews.com">www.mailandnews.com</a>, for
+example) if you are unable to set up multiple POP3 accounts
+yourself.</p>
+
+<h2><a name="Using Apache Tomcat v3.1 for the Server-side">Using
+Apache Tomcat v3.1 for the Server-side</a></h2>
+
+<p><strong>IMPORTANT</strong>: Tomcat comes with an XML parser
+(lib/xml.jar) which has the DOM level 1 interfaces. Even if you
+put Xerces 1.0.3's xerces.jar in your classpath, the wrong
+interfaces are found by any Java code running in Tomcat because
+the shell script / batch file that runs Tomcat puts the user's
+classpath at the end. So, you must edit tomcat.sh or tomcat.bin
+in the bin/ directory and put xerces.jar at the BEGINING of the
+classpath the script builds. </p>
+
+<p>If you run startup.bat, then line 38 of tomcat.bat should look
+like this:</p>
+
+<blockquote>
+    <pre>set CLASSPATH=path-to-xerces\xerces.jar;%CLASSPATH%;%cp%</pre>
+</blockquote>
+
+<p>If you run startup.sh, add the following after line 111:</p>
+
+<blockquote>
+    <pre>CLASSPATH=path-to-xerces/xerces.jar:${CLASSPATH}</pre>
+</blockquote>
+
+<p>The easiest way to set up for Tomcat is to add a
+&lt;Context&gt; to conf/server.xml:</p>
+
+<pre>&lt;Context path=&quot;/xml-soap&quot; docBase=&quot;path-to-xml-soap/XML-SOAP-1.2/webapp&quot; 
+         debug=&quot;1&quot; reloadable=&quot;true&quot; &gt;
+&lt;/Context&gt;</pre>
+
+<p>Now, make sure you have the jar files from the lib directory
+of this distribution on your classpath and startup tomcat. Also
+you will want to have on the classpath any of your code that you
+want to deploy as services.</p>
+
+<p>You should be able to deploy services by pointing a browser to</p>
+
+<blockquote>
+    <pre><a href="http://hostname:port/xml-soap">http://hostname:port/xml-soap</a></pre>
+</blockquote>
+
+<p>where hostname is the host on which Tomcat is running and port
+is the port. See the next section for details on the
+aministration tool. The SOAP end-point for invoking services on
+this server is:</p>
+
+<blockquote>
+    <pre><a href="http://hostname:port/xml-soap">http://hostname:port/xml-soap/rpcrouter.jsp</a></pre>
+</blockquote>
+
+<p>Happy SOAP-ing!</p>
+
+<h2><a name="Managing Services">Managing Services</a></h2>
+
+<p>XML-SOAP provides an administration tool to manage services.
+There are two clients to service manager: an HTML one used via a
+browser and a <img src="doc/new.gif"> command-line tool. </p>
+
+<p>NOTE: If you had previously deployed services to an XML-SOAP
+server, then this version will not recognize those services
+because the class that was being serialized to represent services
+has changed.</p>
+
+<h3>Running the Server Side Admin Tool to Manage Services</h3>
+
+<p>With the XML-SOAP Administration Tools it is possible to use a
+Web browser to deploy and un-deploy services and to review the
+list and the definitions of the services deployed on a given SOAP
+server. </p>
+
+<p>Point your browse to <a href="http://hostname:port/xml-soap">http://hostname:port/xml-soap</a>
+(see above) and you will get the &quot;XML-SOAP Admin&quot;
+screen with three options:</p>
+
+<ul>
+    <li><b>Deploy </b>to deploy a new service. </li>
+    <li><b>Un-deploy </b>to remove a deployed service. </li>
+    <li><b>List </b>shows the list of services currently deployed
+        in the server.</li>
+</ul>
+
+<p>The usage of these functions is immediate once one understands
+the nature of the information required for deploying a service.
+In the next section we describe this information.<b> </b></p>
+
+<p><b>Service Deployment Information</b></p>
+
+<p>We review here the information that defines a deployed
+service. This information must be provided when using the Deploy
+function, and can be browsed using the List function. We refer to
+this information as &quot;properties&quot; of the service. </p>
+
+<ul>
+    <li><b>ID.</b> An URN uniquely identifies the service to
+        clients. It must be unique among the deployed services,
+        and be encoded as a URI. We commonly use the format:
+        urn:UniqueServiceID . It corresponds to the target object
+        ID, in the terminology of the SOAP specification. </li>
+    <li><b>Scope. </b>Defines the lifetime of the object serving
+        the invocation request. This corresponds scope attribute
+        of the &lt;jsp:useBean&gt; tag in the JavaServer Pages.
+        It may thus have the following possible values: <ul>
+            <li><b>page:</b> the object is available until the
+                target JSP page (in this case the rpcrouter.jsp)
+                sends a response back or the request is forwarded
+                to another page (if you are using the standard
+                deployment mechanism this is unlikely to happen).
+            </li>
+            <li><b>request: </b>the object is available for the
+                complete duration of the request, regardless of
+                forwarding. </li>
+            <li><b>session: </b>the object is available for the
+                complete duration of the session. </li>
+            <li><b>application: </b>any page within the
+                application may access the object. In particular,
+                successive service invocations belonging to
+                different sessions will share the same instance
+                of the object. It is important to observe that
+                the value of this attribute can have important
+                security implications. The page and request
+                scopes assure the isolation of successive calls.
+                On the other extreme, application scope implies
+                that all service objects are shared among
+                different users of the SOAP server. A document
+                describing usage scenarios for different scopes
+                will be forthcoming. </li>
+        </ul>
+    </li>
+    <li><b>Method list. </b>Defines the names of the method that
+        can be invoked on this service object.</li>
+    <li><b>Provider type.</b><strong> </strong>Indicates whether
+        the service is implemented using Java or a scripting
+        language.</li>
+    <li><b>For Java services, Provider class.</b> Fully specified
+        class name of the target object servicing the request. </li>
+    <li><b>For Java services, Use static class. </b>If set to<b> </b>&quot;Yes&quot;
+        the class method that is made available is a static
+        method, and thus no object will be instantiated. When
+        static invocation is used, the &quot;scope&quot; property
+        is not applicable. </li>
+    <li><strong>For script services, Script language.</strong>
+        Indicates the scripting language used to implement the
+        service.</li>
+    <li><strong>For script services, Script filename.</strong>
+        Name of file containing the script, or</li>
+    <li><strong>For script services, Script.</strong> The actual
+        script to run.</li>
+    <li><b>Type mappings. </b>In order to control the
+        serialization and deserialization of specific Java types
+        to and from XML in a particular encoding style, it may be
+        necessary to provide serialization and deserialization
+        classes that know how to perform the correct conversions
+        for those types. The XML-SOAP server already includes
+        serialization classes for most basic types in the SOAP
+        encoding style, as well as a Bean encoding class that can
+        provide a generic serialization of a bean in terms of its
+        properties. It also includes XMI serializer/deserializer
+        classes to support the XMI encoding style. Since
+        different types may require additional support for
+        correct serialization, the XML-SOAP maintains a registry
+        of Serializers and Deserializers. The registry is
+        accessible to service administrators through the XML-SOAP
+        administration tool, as well as through a program API. In
+        order to register a (de)serializer class, the class must
+        implement the Serializer or Deserializer interfaces, see
+        JavaDocs for org.apache.soap.util.xml.Serializer and
+        com.org.apache.soap.util.Deserializer .</li>
+</ul>
+
+<h3>Using the Command Line Tool to Manage Services</h3>
+
+<p>The command line tool is run by typing java
+org.apache.soap.server.ServiceManagerClient. Running this yields:</p>
+
+<blockquote>
+    <pre><font color="#0000FF">% java org.apache.soap.server.ServiceManagerClient
+Usage: java org.apache.soap.server.ServiceManagerClient url operation arguments
+where
+        url is the XML-SOAP router's URL whose services are managed
+        operation and arguments are:
+                deploy deployment-descriptor-file.xml
+                list
+                query service-name
+                undeploy service-name</font></pre>
+</blockquote>
+
+<p>To deploy a service, for example, type:</p>
+
+<blockquote>
+    <pre>% java org.apache.soap.server.ServiceManagerClient <a
+href="http://hostname:port/xml-soap/rpcrouter.jsp">http://hostname:port/xml-soap/rpcrouter.jsp</a> <strong>deploy</strong> foo.xml</pre>
+</blockquote>
+
+<p>where foo.xml is the deployment descriptor and the URL is
+appropriate for your installation.</p>
+
+<h2><a name="Tool for Debugging SOAP">Tool for Debugging SOAP</a></h2>
+
+<p>XML-SOAP also includes a TCP tunnel / monitor tool that we
+developed to help debug SOAP and other TCP protocols. The class
+org.apache.soap.util.net.TcpTunnelGui can be used to open a port on the
+current machine which basically acts as a tunnel to a remote host
+/ port combination. When a connection is made to the port, the
+tunnel in turn makes a connection to the remote host / port
+combination and uses two windows to show the data going from each
+side. Thus, the client wishing to make a connection to a remote
+host/port can be told to connect to the local host / port and as
+a result you can see the data that's flowing between the two.
+This provides a very useful debugging tool. Check it out!</p>
+
+<h2><a name="Implementation Restrictions">Implementation
+Restrictions</a></h2>
+
+<p>The following features of the SOAP v1.1 specification are <strong>not</strong>
+currently supported:</p>
+
+<ul>
+    <li>encodingStyle attribute must have only one encoding style
+        given (see section 4.1.1 of the spec)</li>
+    <li>mustUnderstand attribute</li>
+    <li>root attribute</li>
+    <li>actor attribute and SOAP intermediaries</li>
+    <li>ID/href links and multi-ref accessors</li>
+    <li>all but the following XML Schema simple types: string,
+        boolean, double, float, long, int, short, byte</li>
+</ul>
+
+<h2><a name="Dependencies">Dependencies</a></h2>
+
+<ul>
+    <li>XMI encoding requires use of Java 1.2.2 and XML4J 2.0.15.
+        The rest of XML-SOAP requires Apache Xerces 1.0.3. Your
+        classpath must have xerces.jar first and then xml4j.jar
+        next <strong>in that order</strong>. </li>
+    <li>Implementing services in scripting languages requires the
+        use of <a href="http://www.alphaworks.ibm.com/tech/bsf">BSF</a>.
+        When you download BSF, note carefully the versions of the
+        various scripting languages supported! [A new release of
+        BSF is upcoming very shortly.]</li>
+</ul>
+
+<h2><a name="Bugs">Bugs</a></h2>
+
+<p>None that we know of right now ..</p>
+
+<p>While not strictly a bug, the docs are pretty lacking yet. We
+are working on much improved documentation (both external and
+within the source)!</p>
+
+<h2><a name="Authors">Authors</a></h2>
+
+<blockquote>
+    <p>Matthew J. Duftler, <a href="mailto:duftler@us.ibm.com">duftler@us.ibm.com</a>,<br>
+    Sanjiva Weerawarana, <a href="mailto:sanjiva@watson.ibm.com">sanjiva@watson.ibm.com</a>,<br>
+    Francisco Curbera, <a href="mailto:curbera@us.ibm.com">curbera@us.ibm.com</a><br>
+    <br>
+    Component Systems Group<br>
+    IBM TJ Watson Research Center<br>
+    Hawthorne, NY 10532. <br>
+    </p>
+    Sam Ruby, <a href="mailto:rubys@us.ibm.com">rubys@us.ibm.com</a><br>
+    <br>
+    Software Solutions<br>
+    IBM Research Triangle Park<br>
+    Raleigh, NC 27709<br>
+</blockquote>
+</body>
+</html>
