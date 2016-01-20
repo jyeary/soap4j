@@ -33,20 +33,35 @@
         <maven.compiler.target>1.4</maven.compiler.target>
     </properties>
     <dependencies>
+         <dependency>
+            <groupId>xerces</groupId>
+            <artifactId>xerces</artifactId>
+            <version>1.0.4</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/xerces-1.0.4.jar</systemPath>
+        </dependency>
+        <!-- BEGIN IBM DEPENDENCIES -->
+        <!-- These dependencies were contributed by IBM to Apache. -->
+        <!-- See https://archive.apache.org/dist/ws/soap/version-1.2/ -->
         <dependency>
             <groupId>com.ibm</groupId>
             <artifactId>bsf</artifactId>
             <version>1.0</version>
             <scope>system</scope>
-            <!--<systemPath>${project.basedir}/src/main/resources/bsf.jar</systemPath>-->
             <systemPath>${project.basedir}/lib/bsf.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>com.ibm</groupId>
+            <artifactId>bsfengines</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/bsfengines.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.ibm</groupId>
             <artifactId>xmi</artifactId>
             <version>1.0</version>
             <scope>system</scope>
-            <!--<systemPath>${project.basedir}/src/main/resources/xmisoap.jar</systemPath>-->
             <systemPath>${project.basedir}/lib/xmisoap.jar</systemPath>
         </dependency>
         <dependency>
@@ -54,7 +69,6 @@
             <artifactId>pop3</artifactId>
             <version>1.0</version>
             <scope>system</scope>
-            <!--            <systemPath>${project.basedir}/src/main/resources/pop3.jar</systemPath>-->
             <systemPath>${project.basedir}/lib/pop3.jar</systemPath>
         </dependency>
         <dependency>
@@ -62,19 +76,11 @@
             <artifactId>smtp</artifactId>
             <version>1.0</version>
             <scope>system</scope>
-            <!--            <systemPath>${project.basedir}/src/main/resources/smtp.jar</systemPath>-->
             <systemPath>${project.basedir}/lib/smtp.jar</systemPath>
         </dependency>
-        <dependency>
-            <groupId>xerces</groupId>
-            <artifactId>xerces</artifactId>
-            <version>1.0.4</version>
-            <scope>system</scope>
-            <!--            <systemPath>${project.basedir}/src/main/resources/xerces-1.0.4.jar</systemPath>-->
-            <systemPath>${project.basedir}/lib/xerces-1.0.4.jar</systemPath>
-        </dependency>
+        <!-- END IBM DEPENDENCIES -->
     </dependencies>
-    <name>IBM SOAP 4 Java (Apache SOAP)</name>
+    <name>Apache SOAP - IBM SOAP 4 Java (SOAP4J)</name>
     <description>Original code contribution from IBM to Apache Software 
         Foundation. This code has been converted to Maven.</description>
 </project>
